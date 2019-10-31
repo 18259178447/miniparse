@@ -1,0 +1,21 @@
+{
+  "name": "wxapk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "css-tree": "^1.0.0-alpha.35",
+    "cssbeautify": "^0.3.1",
+    "escodegen": "^1.12.0",
+    "esprima": "^4.0.1",
+    "js-beautify": "^1.10.2",
+    "uglify-es": "^3.3.9",
+    "vm2": "^3.8.4"
+  }
+}

@@ -12,8 +12,11 @@ const escodegen = require('escodegen');
 const cheerio = require('cheerio');
 const cssbeautify = require('cssbeautify');
 const csstree = require('css-tree');
-const needParsePackage = [""]; //需要解包的包,默认空字符串表示主包
+var log = require('single-line-log').stdout;
+const chalk = require('chalk');
+let needParsePackage; //需要解包的包,默认空字符串表示主包
 function restore(srcDir, destDir) {
+    needParsePackage = [""];
     srcDir = path.resolve(srcDir);
     destDir = path.resolve(destDir);
     // 复制图片到目标目录
@@ -24,20 +27,21 @@ function restore(srcDir, destDir) {
     })
 
     // return
-
-
     parseJson(srcDir, destDir);
     needParsePackage.forEach((item,index) => {
+        colorlog(`\n\n---解析${item ? item + "分": "主"}包原始文件开始---`)
         splitjs(path.resolve(srcDir, item, "app-service.js"), destDir);
         splitjs(path.resolve(srcDir, item, "workers.js"), destDir, "workers.js");
         parsewxml(path.resolve(srcDir, item), destDir);
         parsewxss(path.resolve(srcDir, item), destDir, index === 0);
+        colorlog(`\n\n---解析${item ? item + "分": "主"}包原始文件完成---`)
     })
 }
 
 function parseJson(srcDir, destDir) {
-    console.log("\n\n\n\n==========================开始解析app-config.json==============================")
+    
     let configFilePath = path.resolve(srcDir, "app-config.json");
+    colorlog("\n解析所有包json文件开始:" + configFilePath)
     if (!fs.existsSync(configFilePath)) return console.log("不存在配置app-config.json文件，有可能是分包")
 
     let fileContent = fs.readFileSync(configFilePath, "utf8");
@@ -52,14 +56,13 @@ function parseJson(srcDir, destDir) {
     if (fileObj.networkTimeout) appjson.networkTimeout = fileObj.networkTimeout;
 
     if (fileObj.subPackages) {
-        console.log("==============================================================================================================");
-        console.log(`请注意这个小程序采用了分包，分包个数为：${fileObj.subPackages.length}`)
+        console.log(chalk.bold.red(`\n这个小程序采用了分包，分包个数为：${fileObj.subPackages.length}\n`))
         appjson.subPackages = fileObj.subPackages.map(item => {
             let root = item.root;
             if (root.startsWith("/")) root = root.slice(1);
             if (!root.endsWith("/")) root += "/";
             if (!Tool.isDir(path.resolve(srcDir, root))) {
-                console.log(`缺少${item.root}分包`)
+                console.log(chalk.bold.red(`\n缺少${item.root}分包\n`))
             } else {
                 needParsePackage.push(root);
             }
@@ -72,13 +75,12 @@ function parseJson(srcDir, destDir) {
             })
             return item
         })
-        console.log("==============================================================================================================");
     }
 
     if (fs.existsSync(path.resolve(srcDir, "workers.js"))) appjson.workers = getWorkerPath(path.resolve(srcDir, "workers.js"));
-    if (fileObj.extAppid) console.log("==========================\n这个小程序存在第三方平台请注意\n==================");
+    if (fileObj.extAppid) console.log(chalk.bold.red("==========================\n这个小程序存在第三方平台请注意\n=================="));
 
-    console.log("生成各个页面及组件的json文件")
+    // console.log("开始保存json文件")
 
     // fileObj.page包含主包页面、分包页面、有的包含主包使用到的组件，有的没有，
     // 所以以下代码会把主包的组件抽出来，以免报错（猜测）
@@ -99,7 +101,7 @@ function parseJson(srcDir, destDir) {
     //fileObj.page['pages/collect/collect.html'] = {"component":true,"usingComponents":{}}
     needParsePackage.forEach(item => { //解析存在包的页面json文件
         let _path = path.resolve(srcDir, item, "app-service.js");
-        if (!fs.existsSync(_path)) result;
+        if (!fs.existsSync(_path)) return;
         let matches = fs.readFileSync(_path, { encoding: 'utf8' }).match(/\_\_wxAppCode\_\_\['[^\.]+\.json[^;]+\;/g);
         if (matches) {
             let attachInfo = {};
@@ -120,7 +122,9 @@ function parseJson(srcDir, destDir) {
     // let delWeight = 8;
     for (let file in fileObj.page) {
         let fileName = path.resolve(destDir, changeExt(file, ".json"));
+
         Tool.saveFile(fileName, JSON.stringify(fileObj.page[file].window, null, 4));
+        log(chalk.bold.green(fileName + "保存成功"));
         // wu.save(fileName, JSON.stringify(fileObj.page[file].window, null, 4));
         // if (configFilePath == fileName) delWeight = 0;
     }
@@ -145,7 +149,7 @@ function parseJson(srcDir, destDir) {
             }
         }
     }
-    console.log("处理tabBar开始")
+    // console.log("处理tabBar开始")
     if (appjson.tabBar && appjson.tabBar.list) {
         let imageFiles = Tool.scanDirByExt(srcDir).filter(item => /\.(png|svg|jpeg|jpg)/.test(item)).map(item => {
             let data = fs.readFileSync(item, {})
@@ -178,16 +182,18 @@ function parseJson(srcDir, destDir) {
             }
         })
     }
-    console.log("保存app.json文件")
+
+    
     Tool.saveFile(path.resolve(destDir, 'app.json'), JSON.stringify(appjson, null, 4));
-    console.log("==========================解析app-config.json结束==============================")
+    log(chalk.bold.green("app.json  保存成功"));
+    log(chalk.bold.green("解析所有包json文件完成"));
         // console.log(fileObj.page, 123)
         // console.log(path.relative("F:\\wxapk\\build\\444","F:\\wxapk\\build\\444\\img\\vip\\tag-svip.png"))
 }
 
 function splitjs(jsPath, destDir) {
     if (!fs.existsSync(jsPath)) return;
-    console.log("开始分割js", jsPath)
+    colorlog("\n解析js文件开始:" + jsPath)
     let code = fs.readFileSync(jsPath, "utf8");
     code = code.slice(code.indexOf("define("));
     let vm = new VM({
@@ -204,13 +210,16 @@ function splitjs(jsPath, destDir) {
                     console.log("Fail to delete 'use strict' in \"" + name + "\".");
                     res = jsBeautify(bcode);
                 }
+
                 Tool.saveFile(path.resolve(destDir, name), jsBeautify(res).replace(/\bqq\./g, "wx."));
+                log(chalk.bold.green(path.resolve(destDir, name) + "保存成功"));
             },
             definePlugin() {},
             requirePlugin() {}
         }
     });
     vm.run(code);
+    log(chalk.bold.green("解析js文件完成"));
 }
 
 function parsewxml(srcDir, destDir) {
@@ -223,7 +232,7 @@ function parsewxml(srcDir, destDir) {
         	if(!fs.existsSync(parsePath)) return
         }
     }
-    console.log("开始解析wxml文件:" + parsePath)
+    colorlog("\n解析wxml文件开始:" + parsePath)
     let code = fs.readFileSync(parsePath, "utf8");
     let z = ZParse.getZ(code);
     // console.log("z",z)
@@ -291,9 +300,11 @@ function parsewxml(srcDir, destDir) {
     for (let name in rE) {
         tryWxml(srcDir, destDir, name, rE[name].f.toString(), z, x, rD[name], wxsList);
     }
+    log(chalk.bold.green("解析wxml文件完成"));
 }
 
 function parsewxss(dir, destDir, isMain) {
+    
     let saveDir = destDir;
     let files = Tool.scanDirByExt(dir, ".html");
     let frameFile = "";
@@ -304,7 +315,7 @@ function parsewxss(dir, destDir, isMain) {
     else if (fs.existsSync(path.resolve(dir, "page-frame.js")))
         frameFile = path.resolve(dir, "page-frame.js");
     else throw Error("page-frame-like file is not found in the package by auto.");
-
+    colorlog("\n解析wxss文件开始:" + frameFile)
     let code = fs.readFileSync(frameFile, "utf8");
 //WXMLRT_$6e616d65732f:
 	
@@ -388,31 +399,33 @@ function parsewxss(dir, destDir, isMain) {
     onlyTest = true;
     for (let name in runList) runVM(name, runList[name]);
     onlyTest = false;
-    console.log("Import count info: %j", importCnt);
+    // console.log("Import count info: %j", importCnt);
     for (let id in pureData)
         if (!actualPure[id]) {
             if (!importCnt[id]) importCnt[id] = 0;
             if (importCnt[id] <= 1) {
-                console.log("Cannot find pure import for _C[" + id + "] which is only imported " + importCnt[id] + " times. Let importing become copying.");
+                // console.log("Cannot find pure import for _C[" + id + "] which is only imported " + importCnt[id] + " times. Let importing become copying.");
             } else {
                 let newFile = path.resolve(saveDir, "__wuBaseWxss__/" + id + ".wxss");
-                console.log("Cannot find pure import for _C[" + id + "], force to save it in (" + newFile + ").");
+                // console.log("Cannot find pure import for _C[" + id + "], force to save it in (" + newFile + ").");
                 id = Number.parseInt(id);
                 actualPure[id] = newFile;
                 cssRebuild.call({ cssFile: newFile }, id)();
             }
         }
-    console.log("Guess wxss(first turn) done.\nGenerate wxss(second turn)...");
+    // console.log("Guess wxss(first turn) done.\nGenerate wxss(second turn)...");
     for (let name in runList) runVM(name, runList[name]);
-    console.log("Generate wxss(second turn) done.\nSave wxss...");
+    // console.log("Generate wxss(second turn) done.\nSave wxss...");
 	
-    console.log('saveDir: ' + saveDir);
+    
     for (let name in result) {
         let pathFile = path.resolve(saveDir, changeExt(name, ".wxss"));
         if(!isMain && pathFile.endsWith("app.wxss")) continue;
-        console.log(66,pathFile)
+
         Tool.saveFile(pathFile, transformCss(result[name]).replace(/\s+;wxcs_.*;/g, ''));
+        log(chalk.bold.green(pathFile + "保存成功"));
     }
+    log(chalk.bold.green("解析wxss文件完成"));
 
     function GwxCfg() {}
 
@@ -652,11 +665,12 @@ function doWxs(code, name) {
 }
 
 function tryWxml(srcDir, destDir, name, code, z, xPool, rDs, ...args) {
-    console.log("Decompile " + name + "...");
+    // console.log("Decompile " + name + "...");
     let state = [null];
     try {
         doWxml(state, srcDir, destDir, name, code, z, xPool, rDs, ...args);
-        console.log("Decompile success!");
+        log(chalk.bold.green(name + "保存成功"));
+        // console.log("Decompile success!");
     } catch (e) {
         console.log("error on " + name + "(" + (state[0] === null ? "Main" : "Template-" + state[0]) + ")\nerr: ", e);
         if (state[0] === null) Tool.saveFile(path.resolve(destDir, name + ".ori.js"), code);
@@ -1056,6 +1070,9 @@ function elemToString(elem, dep, moreInfo = false) {
 }
 
 
+function colorlog(...name) {
+    console.log(chalk.bold.green(...name))
+}
 
 
 

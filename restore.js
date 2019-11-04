@@ -237,10 +237,13 @@ function parsewxml(srcDir, destDir) {
     let z = ZParse.getZ(code);
     // console.log("z",z)
     // return
-    const before = "var nv_require=function(){var nnm=";
-    code = code.replace(/\s*var\s*nv_require\s*=\s*function\s*\(\)\s*\{\s*var\s*nnm\s*=\s*/, "var nv_require=function(){var nnm=")
+    const before = "var nv_require=function(){";
+    code = code.replace(/\s*var\s*nv_require\s*=\s*function\s*\(\)\s*\{/, "var nv_require=function(){")
+    // let wxsCode = code.slice(code.indexOf())
     code = code.slice(code.lastIndexOf(before) + before.length, code.lastIndexOf("if(path&&e_[path]){"));
-    let json = code.slice(0, code.indexOf("};") + 1); //nnm=后面的对象
+    let wxsCode = code.slice(0,code.indexOf("var nom"));
+
+    // let json = code.slice(0, code.indexOf("};") + 1); //nnm=后面的对象
     // let endOfRequire = code.indexOf("()\r\n") + 4;
     // console.log(code.indexOf("};"),6666,code.slice(0,47))
 
@@ -257,19 +260,23 @@ function parsewxml(srcDir, destDir) {
                 e_: rE,
                 f_: rF,
                 _vmRev_(data) {
-                    [requireInfo] = data;
+                    requireInfo = data;
+                    // [requireInfo] = data;
                 },
                 nv_require(path) {
                     return () => path;
-                }
+                },
+                // mynnm:requireInfo
             }
         });
-    let vmCode = code + "\n_vmRev_([" + json + "])";
+        // console.log(wxsCode)
+    let vmCode = code + "\n" + wxsCode + "\n_vmRev_(nnm)";
+    // let vmCode = code + "\n_vmRev_([" + json + "])";
     vm.run(vmCode);
     
     x = Object.keys(rD);
 
-    // console.log(rF)
+    // console.log(rF,requireInfo)
     // return
 
     // requireInfo = JSON.parse(json);
@@ -358,7 +365,8 @@ function parsewxss(dir, destDir, isMain) {
     //remove setCssToHead function
     mainCode = mainCode.replace('var setCssToHead = function', 'var setCssToHead2 = function');
     code = code.slice(code.lastIndexOf('var setCssToHead = function(file, _xcInvalid'));
-    code = code.slice(code.lastIndexOf('\nvar _C=') + 1);
+    code = code.replace(/var _C\s*=/,"var _C=")
+    code = code.slice(code.lastIndexOf('var _C='));
     code = code.slice(0, code.indexOf('function makeup'));
 
     let vm = new VM({ sandbox: {} });
@@ -1001,6 +1009,7 @@ function wxmlify(str, isText) {
 }
 
 function elemToString(elem, dep, moreInfo = false) {
+    
     const longerList = []; //put tag name which can't be <x /> style.
     const indent = ' '.repeat(4);
 

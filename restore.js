@@ -20,15 +20,15 @@ function restore(srcDir, destDir) {
     srcDir = path.resolve(srcDir);
     destDir = path.resolve(destDir);
     // 复制图片到目标目录
-    Tool.scanDirByExt(srcDir).filter(item => /\.(png|svg|jpeg|jpg)/.test(item)).forEach(item=>{
-    	// fs.readFileSync(frameFile, "utf8")
-    	Tool.saveFile(item.replace(srcDir,destDir),fs.readFileSync(item))
-    	// console.log(item.replace(srcDir,destDir))
+    Tool.scanDirByExt(srcDir).filter(item => /\.(png|svg|jpeg|jpg)/.test(item)).forEach(item => {
+        // fs.readFileSync(frameFile, "utf8")
+        Tool.saveFile(item.replace(srcDir, destDir), fs.readFileSync(item))
+            // console.log(item.replace(srcDir,destDir))
     })
 
     // return
     parseJson(srcDir, destDir);
-    needParsePackage.forEach((item,index) => {
+    needParsePackage.forEach((item, index) => {
         colorlog(`\n\n---解析${item ? item + "分": "主"}包原始文件开始---`)
         splitjs(path.resolve(srcDir, item, "app-service.js"), destDir);
         splitjs(path.resolve(srcDir, item, "workers.js"), destDir, "workers.js");
@@ -39,7 +39,7 @@ function restore(srcDir, destDir) {
 }
 
 function parseJson(srcDir, destDir) {
-    
+
     let configFilePath = path.resolve(srcDir, "app-config.json");
     colorlog("\n解析所有包json文件开始:" + configFilePath)
     if (!fs.existsSync(configFilePath)) return console.log("不存在配置app-config.json文件，有可能是分包")
@@ -183,12 +183,12 @@ function parseJson(srcDir, destDir) {
         })
     }
 
-    
+
     Tool.saveFile(path.resolve(destDir, 'app.json'), JSON.stringify(appjson, null, 4));
     log(chalk.bold.green("app.json  保存成功"));
     log(chalk.bold.green("解析所有包json文件完成"));
-        // console.log(fileObj.page, 123)
-        // console.log(path.relative("F:\\wxapk\\build\\444","F:\\wxapk\\build\\444\\img\\vip\\tag-svip.png"))
+    // console.log(fileObj.page, 123)
+    // console.log(path.relative("F:\\wxapk\\build\\444","F:\\wxapk\\build\\444\\img\\vip\\tag-svip.png"))
 }
 
 function splitjs(jsPath, destDir) {
@@ -223,13 +223,13 @@ function splitjs(jsPath, destDir) {
 }
 
 function parsewxml(srcDir, destDir) {
-    
+
     let parsePath = path.resolve(srcDir, "page-frame.html");
     if (!fs.existsSync(parsePath)) {
         parsePath = path.resolve(srcDir, "app-wxss.js");
         if (!fs.existsSync(parsePath)) {
-        	parsePath = path.resolve(srcDir, "page-frame.js");
-        	if(!fs.existsSync(parsePath)) return
+            parsePath = path.resolve(srcDir, "page-frame.js");
+            if (!fs.existsSync(parsePath)) return
         }
     }
     colorlog("\n解析wxml文件开始:" + parsePath)
@@ -239,9 +239,9 @@ function parsewxml(srcDir, destDir) {
     // return
     const before = "var nv_require=function(){";
     code = code.replace(/\s*var\s*nv_require\s*=\s*function\s*\(\)\s*\{/, "var nv_require=function(){")
-    // let wxsCode = code.slice(code.indexOf())
+        // let wxsCode = code.slice(code.indexOf())
     code = code.slice(code.lastIndexOf(before) + before.length, code.lastIndexOf("if(path&&e_[path]){"));
-    let wxsCode = code.slice(0,code.indexOf("var nom"));
+    let wxsCode = code.slice(0, code.indexOf("var nom"));
 
     // let json = code.slice(0, code.indexOf("};") + 1); //nnm=后面的对象
     // let endOfRequire = code.indexOf("()\r\n") + 4;
@@ -250,8 +250,8 @@ function parsewxml(srcDir, destDir) {
     // if (endOfRequire == 4 - 1) endOfRequire = code.indexOf("()\n") + 3;
     let endOfRequire = code.indexOf("}()") + 4;
     code = code.slice(endOfRequire); //var x=[  到 if(path&&e_[path]){之前
-    let rD = {},// {./packageB/components/collect/collect-list.wxml:{}} //对象里面保留template  key(模板名称):函数代码 back-title:function
-        rE = {},//{./packageB/components/collect/collect-list.wxml:{f:m1,j:[],i:[],ti:[],ic:[]}}
+    let rD = {}, // {./packageB/components/collect/collect-list.wxml:{}} //对象里面保留template  key(模板名称):函数代码 back-title:function
+        rE = {}, //{./packageB/components/collect/collect-list.wxml:{f:m1,j:[],i:[],ti:[],ic:[]}}
         rF = {},
         requireInfo = {},
         x, vm = new VM({
@@ -269,11 +269,11 @@ function parsewxml(srcDir, destDir) {
                 // mynnm:requireInfo
             }
         });
-        // console.log(wxsCode)
+    // console.log(wxsCode)
     let vmCode = code + "\n" + wxsCode + "\n_vmRev_(nnm)";
     // let vmCode = code + "\n_vmRev_([" + json + "])";
     vm.run(vmCode);
-    
+
     x = Object.keys(rD);
 
     // console.log(rF,requireInfo)
@@ -282,7 +282,7 @@ function parsewxml(srcDir, destDir) {
     // requireInfo = JSON.parse(json);
     let pF = [],
         wxsList = {};
-    for (let info in rF) {//解析wxs
+    for (let info in rF) { //解析wxs
 
         if (typeof rF[info] == "function") {
             let name = path.resolve(destDir, (info[0] == '/' ? '.' : '') + info),
@@ -311,7 +311,7 @@ function parsewxml(srcDir, destDir) {
 }
 
 function parsewxss(dir, destDir, isMain) {
-    
+
     let saveDir = destDir;
     let files = Tool.scanDirByExt(dir, ".html");
     let frameFile = "";
@@ -324,9 +324,9 @@ function parsewxss(dir, destDir, isMain) {
     else throw Error("page-frame-like file is not found in the package by auto.");
     colorlog("\n解析wxss文件开始:" + frameFile)
     let code = fs.readFileSync(frameFile, "utf8");
-//WXMLRT_$6e616d65732f:
-	
-	let wxmart = code.match(/WXMLRT_(.+?):/)[1]
+    //WXMLRT_$6e616d65732f:
+
+    let wxmart = code.match(/WXMLRT_(.+?):/)[1]
 
     code = code.replace(/display:-webkit-box;display:-webkit-flex;/gm, '');
     // display: -webkit-flex;
@@ -365,7 +365,7 @@ function parsewxss(dir, destDir, isMain) {
     //remove setCssToHead function
     mainCode = mainCode.replace('var setCssToHead = function', 'var setCssToHead2 = function');
     code = code.slice(code.lastIndexOf('var setCssToHead = function(file, _xcInvalid'));
-    code = code.replace(/var _C\s*=/,"var _C=")
+    code = code.replace(/var _C\s*=/, "var _C=")
     code = code.slice(code.lastIndexOf('var _C='));
     code = code.slice(0, code.indexOf('function makeup'));
 
@@ -380,7 +380,7 @@ function parsewxss(dir, destDir, isMain) {
         blockCss = []; //custom block css file which won't be imported by others.(no extension name)
     pureData = vm.run(code + "\n_C");
 
-	runList[path.resolve(destDir, "./app.wxss")] = mainCode;
+    runList[path.resolve(destDir, "./app.wxss")] = mainCode;
     for (let name of files) {
         if (name != frameFile) {
             let _code = fs.readFileSync(name, "utf8");
@@ -421,14 +421,14 @@ function parsewxss(dir, destDir, isMain) {
                 cssRebuild.call({ cssFile: newFile }, id)();
             }
         }
-    // console.log("Guess wxss(first turn) done.\nGenerate wxss(second turn)...");
+        // console.log("Guess wxss(first turn) done.\nGenerate wxss(second turn)...");
     for (let name in runList) runVM(name, runList[name]);
     // console.log("Generate wxss(second turn) done.\nSave wxss...");
-	
-    
+
+
     for (let name in result) {
         let pathFile = path.resolve(saveDir, changeExt(name, ".wxss"));
-        if(!isMain && pathFile.endsWith("app.wxss")) continue;
+        if (!isMain && pathFile.endsWith("app.wxss")) continue;
 
         Tool.saveFile(pathFile, transformCss(result[name]).replace(/\s+;wxcs_.*;/g, ''));
         log(chalk.bold.green(pathFile + "保存成功"));
@@ -440,8 +440,8 @@ function parsewxss(dir, destDir, isMain) {
     GwxCfg.prototype = {
         $gwx() {}
     };
-    GwxCfg.prototype[wxmart] = function(){}
-    
+    GwxCfg.prototype[wxmart] = function() {}
+
     for (let i = 0; i < 300; i++) GwxCfg.prototype[wxmart + i] = GwxCfg.prototype[wxmart];
     // for (let i = 0; i < 300; i++) GwxCfg.prototype["$gwx" + i] = GwxCfg.prototype.$gwx;
 
@@ -513,7 +513,7 @@ function parsewxss(dir, destDir, isMain) {
             sandbox: Object.assign(new GwxCfg(), {
                 __wxAppCode__: wxAppCode,
                 setCssToHead: cssRebuild.bind(handle),
-                [wxmart]:function(path, global){
+                [wxmart]: function(path, global) {
 
                 },
                 $gwx(path, global) {
@@ -692,13 +692,61 @@ function doWxml(state, srcDir, destDir, name, code, z, xPool, rDs, wxsList, more
     code = code.slice(code.indexOf("var z"), code.lastIndexOf("return")).trim();
 
     let r = { son: [] };
+
+
+    // return
+    // console.log(name === "./pages/home/main.wxml" ,esprima.parseScript(code).body)
     analyze(esprima.parseScript(code).body, z, {
         [rname]: r
     }, xPool, {
         [rname]: r
     });
     let ans = [];
-    for (let elem of r.son) ans.push(elemToString(elem, 0, moreInfo));
+
+
+
+    let count = 0;
+
+    for (let elem of r.son) {
+        count++
+        // if (name === "./pages/home/main.wxml" && count === 4) {
+        //     // elem.son.pop()
+        //     console.log(23, elem)
+        //     let c = 0;
+
+        //     function wideTraversal(node) {
+        //         let nodes = [],
+        //             i = 0;
+        //         let num = 0;
+        //         while (node && c < 200) {
+        //             c++;
+        //             nodes.push(node);
+        //             node = nodes[i++];
+        //             let sons = node.son;
+        //             // console.log(node)
+        //             if (sons) {
+        //                 if(sons.length === 5){
+        //                     num++
+        //                     if(num === 3){
+        //                          node.son.pop()
+        //                     }
+                           
+        //                 }
+        //                 for (let i = 0; i < sons.length; i++) {
+        //                     nodes.push(sons[i]);
+        //                 }
+
+        //             }
+
+        //         }
+        //         return nodes;
+        //     }
+        //     wideTraversal(elem)
+
+        // }
+        // console.log(JSON.stringify(elem),666,elem)
+        ans.push(elemToString(elem, 0, moreInfo))
+    }
     let result = [];
 
     for (let v in rDs) {
@@ -940,7 +988,7 @@ function analyze(core, z, namePool, xPool, fakePool = {}, zMulName = "0") {
                             default:
                                 {
                                     let funName = dec.init.callee.name;
-                                    
+
                                     zMulName = funName;
                                     // console.log(789456465456465,z.mul[zMulName])
                                     // if (funName.startsWith("gz$gwx")) {
@@ -1009,7 +1057,7 @@ function wxmlify(str, isText) {
 }
 
 function elemToString(elem, dep, moreInfo = false) {
-    
+
     const longerList = []; //put tag name which can't be <x /> style.
     const indent = ' '.repeat(4);
 

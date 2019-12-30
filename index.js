@@ -138,8 +138,7 @@ console.log(chalk.bold.green("\n************************************开始解包
     console.log(chalk.bold.green("\n************************************解包结束**************************************"))
 }
 
-
-
+setTimeout(()=>{},100000000)
 
 function getSrc() {
     let src = "";
@@ -154,3 +153,4 @@ function getSrc() {
     }
     return src
 }
+

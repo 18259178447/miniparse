@@ -305,6 +305,7 @@ function parsewxml(srcDir, destDir) {
     }
 
     for (let name in rE) {
+
         tryWxml(srcDir, destDir, name, rE[name].f.toString(), z, x, rD[name], wxsList);
     }
     log(chalk.bold.green("解析wxml文件完成"));
@@ -692,7 +693,9 @@ function doWxml(state, srcDir, destDir, name, code, z, xPool, rDs, wxsList, more
     code = code.slice(code.indexOf("var z"), code.lastIndexOf("return")).trim();
 
     let r = { son: [] };
-
+    // if(name === "./pages/cards/main.wxml"){
+    //     console.log(z)
+    // }
 
     // return
     // console.log(name === "./pages/home/main.wxml" ,esprima.parseScript(code).body)
@@ -776,8 +779,10 @@ function doWxml(state, srcDir, destDir, name, code, z, xPool, rDs, wxsList, more
     if (wxsList[name]) result.push(wxsList[name]);
     Tool.saveFile(name, result.join(""));
 }
-
+let iss = true;
 function analyze(core, z, namePool, xPool, fakePool = {}, zMulName = "0") {
+
+
     function anaRecursion(core, fakePool = {}) {
         return analyze(core, z, namePool, xPool, fakePool, zMulName);
     }
@@ -788,7 +793,10 @@ function analyze(core, z, namePool, xPool, fakePool = {}, zMulName = "0") {
 
     function pushSon(pname, son) {
         if (fakePool[pname]) fakePool[pname].son.push(son);
-        else namePool[pname].son.push(son);
+        else if(namePool[pname]){
+            if(!namePool[pname].son) namePool[pname].son = []
+            namePool[pname].son.push(son);
+        }
     }
 
     for (let ei = 0; ei < core.length; ei++) {

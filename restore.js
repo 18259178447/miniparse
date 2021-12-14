@@ -327,8 +327,7 @@ function parsewxss(dir, destDir, isMain) {
     let code = fs.readFileSync(frameFile, "utf8");
     //WXMLRT_$6e616d65732f:
 
-    let wxmart = code.match(/WXMLRT_(.+?):/)[1]
-
+    let wxmart = code.match(/WXMLRT_(.+?):/)[1]//$gwx
     code = code.replace(/display:-webkit-box;display:-webkit-flex;/gm, '');
     // display: -webkit-flex;
     let scriptCode = code;
@@ -365,12 +364,21 @@ function parsewxss(dir, destDir, isMain) {
 
     //remove setCssToHead function
     mainCode = mainCode.replace('var setCssToHead = function', 'var setCssToHead2 = function');
+
+    let commonStyleCode = ""
+    let commonStyleData ={};
+    if(code.indexOf("__COMMON_STYLESHEETS__") > -1){
+        commonStyleCode = code.replace(/var __COMMON_STYLESHEETS__\s*=/,"var __COMMON_STYLESHEETS__=");
+        commonStyleCode = commonStyleCode.slice(commonStyleCode.indexOf('var __COMMON_STYLESHEETS__='));
+        commonStyleCode = commonStyleCode.slice(0,commonStyleCode.indexOf('var setCssToHead = function(file, _xcInvalid'));
+       commonStyleData = new VM({ sandbox: {
+        }}).run(commonStyleCode + "\n__COMMON_STYLESHEETS__");
+    }
     code = code.slice(code.lastIndexOf('var setCssToHead = function(file, _xcInvalid'));
     code = code.replace(/var _C\s*=/, "var _C=")
     code = code.slice(code.lastIndexOf('var _C='));
     code = code.slice(0, code.indexOf('function makeup'));
 
-    let vm = new VM({ sandbox: {} });
     let runList = {},
         pureData = {},
         result = {},
@@ -379,6 +387,9 @@ function parsewxss(dir, destDir, isMain) {
         frameName = "",
         onlyTest = true,
         blockCss = []; //custom block css file which won't be imported by others.(no extension name)
+    let vm = new VM({ sandbox: {
+        __COMMON_STYLESHEETS__:{}
+    } });
     pureData = vm.run(code + "\n_C");
 
     runList[path.resolve(destDir, "./app.wxss")] = mainCode;
@@ -403,25 +414,32 @@ function parsewxss(dir, destDir, isMain) {
         }
     }
 
-
     frameName = frameFile;
     onlyTest = true;
     for (let name in runList) runVM(name, runList[name]);
     onlyTest = false;
     // console.log("Import count info: %j", importCnt);
+    
     for (let id in pureData)
-        if (!actualPure[id]) {
-            if (!importCnt[id]) importCnt[id] = 0;
-            if (importCnt[id] <= 1) {
-                // console.log("Cannot find pure import for _C[" + id + "] which is only imported " + importCnt[id] + " times. Let importing become copying.");
-            } else {
-                let newFile = path.resolve(saveDir, "__wuBaseWxss__/" + id + ".wxss");
-                // console.log("Cannot find pure import for _C[" + id + "], force to save it in (" + newFile + ").");
-                id = Number.parseInt(id);
-                actualPure[id] = newFile;
-                cssRebuild.call({ cssFile: newFile }, id)();
+    {
+        // id ./mm_las/pages/articleList/articleList.wxss
+            if (!actualPure[id]) {
+
+                if (!importCnt[id]) importCnt[id] = 0;
+                if (importCnt[id] <= 1) {
+
+                    // console.log("Cannot find pure import for _C[" + id + "] which is only imported " + importCnt[id] + " times. Let importing become copying.");
+                } else {
+                    let newFile = path.resolve(saveDir, "__wuBaseWxss__/" + id + ".wxss");
+                    // console.log("Cannot find pure import for _C[" + id + "], force to save it in (" + newFile + ").");
+                    id = Number.parseInt(id);
+                    actualPure[id] = newFile;
+                    cssRebuild.call({ cssFile: newFile }, id)();
+                }
             }
-        }
+    }
+    // return console.log(888,actualPure)
+
         // console.log("Guess wxss(first turn) done.\nGenerate wxss(second turn)...");
     for (let name in runList) runVM(name, runList[name]);
     // console.log("Generate wxss(second turn) done.\nSave wxss...");
@@ -448,25 +466,41 @@ function parsewxss(dir, destDir, isMain) {
 
     function cssRebuild(data) { //need to bind this as {cssFile:__name__} before call
         let cssFile;
-
         function statistic(data) {
+            // data = [[2,"./mm_las/pages/articleList/articleList.wxss"]]
+            // data = [['.',1,"nav{ width: 100%; display: inline-block; position: relative; }\n"]]
             function addStat(id) {
+
+                // console.log(9999,id,!importCnt[id])
                 if (!importCnt[id]) importCnt[id] = 1, statistic(pureData[id]);
                 else ++importCnt[id];
             }
-
             if (typeof data === "number") return addStat(data);
-            for (let content of data)
-                if (typeof content === "object" && content[0] == 2) addStat(content[1]);
+            if(data){
+               for (let content of data)
+                if (typeof content === "object" && content[0] == 2) addStat(content[1]); 
+            }
+            
+
         }
 
         function makeup(data) {
-            var isPure = typeof data === "number";
+
+
+            var isPure = typeof data === "string";
+            // console.log(8888,isPure)
             if (onlyTest) {
                 statistic(data);
                 if (!isPure) {
-                    if (data.length == 1 && data[0][0] == 2) data = data[0][1];
-                    else return "";
+                    if (data.length == 1 && data[0][0] == 2){
+                        data = data[0][1];
+                        // if(pureData[data]){
+                        //     data = pureData[data];
+                        //     return ""
+                        // }
+                    }else{
+                        return "";
+                    }
                 }
                 if (!actualPure[data] && !blockCss.includes(changeExt(toDir(cssFile, frameName), ""))) {
                     console.log("Regard " + cssFile + " as pure import file.");
@@ -476,6 +510,13 @@ function parsewxss(dir, destDir, isMain) {
             }
             let res = [],
                 attach = "";
+//             {
+//   './mm_las/pages/articleList/articleList.wxss': 'H:\\miniparse\\build\\_442977007_2恋爱聊天话术情话助手_build\\mm_las\\pages\\articleList\\articleList.wxss',
+//   './mm_las/pages/detail/detail.wxss': 'H:\\miniparse\\build\\_442977007_2恋爱聊天话术情话助手_build\\mm_las\\pages\\detail\\detail.wxss',
+//   './mm_las/pages/user/iyqm.wxss': 'H:\\miniparse\\build\\_442977007_2恋爱聊天话术情话助手_build\\mm_las\\pages\\user\\iyqm.html',
+//   './mm_las/pages/user/tgds/iwzsc.wxss': 'H:\\miniparse\\build\\_442977007_2恋爱聊天话术情话助手_build\\mm_las\\pages\\user\\tgds\\iwzsc.html',
+//   './mm_las/pages/user/vip/izffgb.wxss': 'H:\\miniparse\\build\\_442977007_2恋爱聊天话术情话助手_build\\mm_las\\pages\\user\\vip\\izffgb.html'
+// }
             if (isPure && actualPure[data] != cssFile) {
                 if (actualPure[data]) return '@import "' + changeExt(toDir(actualPure[data], cssFile), ".wxss") + '";\n';
                 else {
@@ -484,6 +525,13 @@ function parsewxss(dir, destDir, isMain) {
                 }
             }
             let exactData = isPure ? pureData[data] : data;
+            if(isPure && actualPure[data] == cssFile && commonStyleData[data]){
+                exactData = commonStyleData[data];
+            }
+
+            
+
+
             for (let content of exactData)
                 if (typeof content === "object") {
                     switch (content[0]) {
@@ -502,6 +550,7 @@ function parsewxss(dir, destDir, isMain) {
 
         return () => {
             cssFile = this.cssFile;
+            // console.log(99999,cssFile,data)
             if (!result[cssFile]) result[cssFile] = "";
             result[cssFile] += makeup(data);
         };
@@ -687,7 +736,10 @@ function tryWxml(srcDir, destDir, name, code, z, xPool, rDs, ...args) {
     }
 }
 
+let currentName = ""
+
 function doWxml(state, srcDir, destDir, name, code, z, xPool, rDs, wxsList, moreInfo) {
+    currentName = name;
     let rname = code.slice(code.lastIndexOf("return") + 6).replace(/[\;\}]/g, "").trim();
     // console.log(666,code,666)
     code = code.slice(code.indexOf("var z"), code.lastIndexOf("return")).trim();
@@ -858,10 +910,16 @@ function analyze(core, z, namePool, xPool, fakePool = {}, zMulName = "0") {
                                     }
                                     break;
                                 case "_ic":
+                                    let _src = xPool[f.arguments[0].property.value];
+                                    if(_src){
+                                        _src = toDir(_src,currentName);
+                                        if(!_src.startsWith(".") && !_src.startsWith("/")) _src = "./" + _src;
+                                    }
+
                                     pushSon(f.arguments[5].name, {
                                         tag: "include",
                                         son: [],
-                                        v: { src: xPool[f.arguments[0].property.value] }
+                                        v: { src:_src }
                                     });
                                     break;
                                 case "_ai":
